@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf8">
+    <title>js拖拽效果</title>
+    <style type="text/css">
+        *{
+            margin: 0;
+            padding: 0;
+        }
+        body{
+            /*width: 1000px;*/
+            height: 1000px;
+        }
+    </style>
+
+</head>
+<body>
+</body>
+<script type="text/javascript">
+// ==UserScript==
+// @name         jqueryExtend
+// @namespace    http://your.homepage/
+// @version      0.1
+// @description  enter something useful
+// @author       You
+// @match        http://*/*
+// @grant        none
+// @require      
+// ==/UserScript==
+;(function(window, document, undefined) {
+    /*拖动滑块常见定义*/
+    var DragObj = function($moveObj, options) { //$moveObj, $listenObj) {
+        this.defaults = {
+            left: 0,
+            top:0,
+            width:0,
+            height:0,
+            // position:"absolute",
+            // position:"fixed",
+            disX: 0,                    //鼠标距离div左距离和右距离
+            disY:0
+        };
+        this.isDrag = false;
+        this.elem = $moveObj;
+        if (typeof options !== 'undefined') {
+            this.listenElem = typeof options.listenObj === 'object' ? options.listenObj : $moveObj;
+        }
+        else {
+            this.listenElem = $moveObj;
+        }
+        this.init();
+        return $moveObj;
+    };
+
+    DragObj.prototype = {
+        init : function() {
+            var left_ = parseInt(this.getStyle(this.elem, 'left') === "auto" ? 0 : this.getStyle(this.elem, 'left'), 10),        // 需要offsetLeft？
+                height_ = parseInt(this.getStyle(this.elem, 'height'), 10),
+                top_ = parseInt(this.getStyle(this.elem, 'top') ? 0 : this.getStyle(this.elem, 'left'), 10),
+                width_ = parseInt(this.getStyle(this.elem, 'width'), 10),
+                that = this,
+                i;
+
+            console.log("height:" + height_ + " window_:" + width_ + " left_: " + left_ + " top_: " + top_);
+            this.defaults.left = left_ === null ? this.defaults.left : left_;
+            this.defaults.top = top_ === null ? this.defaults.top : top_;
+            this.defaults.width = width_ === null ? this.defaults.width : width_;
+            this.defaults.height = width_ === null ? this.defaults.height : height_;
+            this.elem.style.position = this.defaults.position;
+
+            this.listenElem.addEventListener('mousedown', function(e) {
+                var event_ = e || event;
+                // need to use that ? 
+                that.isDrag = true;
+                that.defaults.disX = event_.clientX - that.defaults.left;
+                that.defaults.disY = event_.clientY - that.defaults.top;
+                console.log("this.mousedown:", that.defaults.disX, that.defaults.disY, event_.clientY, that.defaults.top,that.defaults.left);
+                return false;
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (that.isDrag === true) {
+                    event_ = e || event;
+                    var x = event_.clientX - that.defaults.disX,
+                        y = event_.clientY - that.defaults.disY,
+                        // window_width = document.documentElement.clientWidth - that.defaults.width,
+                        // window_height = document.documentElement.clientHeight - that.defaults.height
+                        window_width = document.body.clientWidth - that.defaults.width,
+                        window_height = document.body.clientHeight - that.defaults.height
+                        ;
+                    /*check if window height is zero*/
+                    if (window_height < 0) {
+                        window_height = document.documentElement.clientHeight - that.defaults.height;
+                        // console.log("window height is " + window_height);
+                    }
+                    
+                    console.log("//////////////////////////////////////////////////////")
+                    console.log("mouse positon:", event_.clientX, event_.clientY);
+                    console.log("div position:", x, y);
+                    console.log("offset : " + that.defaults.disX, that.defaults.disY);
+                    console.log("window's height and elem's height:" +document.documentElement.clientHeight, that.defaults.height);
+                    console.log(x, window_width);
+                    
+                    x = (x < 0) ? 0 : x;
+                    x = (x > window_width) ? window_width : x;
+                    y = (y < 0) ? 0 : y;
+                    y = (y > window_height) ? window_height : y;
+                    that.defaults.left = x;
+                    that.defaults.top = y;
+                    that.elem.style.left = x + 'px';
+                    that.elem.style.top = y + 'px';
+                }
+            });
+            document.addEventListener('mouseup', function(e) {
+                if (that.isDrag === true) {
+                    that.isDrag = false;
+                }
+            });
+        },
+        getStyle: function(obj, name) {
+            // console.log('obj'+obj);
+            var styleVal;
+            if (obj !== null) {
+                if (obj.currentStyle) {
+                    console.log('IE');
+                    styleVal = obj.currentStyle[name] ? obj.currentStyle[name] : obj.currentStyle.getPropertyValue(name);
+                } else if (window.getComputedStyle) {
+                    console.log('FF');
+                    styleVal = window.getComputedStyle(obj, null)[name] ? window.getComputedStyle(obj, null)[name] : window.getComputedStyle(obj, null).getPropertyValue(name);
+                }
+
+            } else {
+                console.log('obj is null');
+                return null;
+            }
+            return styleVal;
+        }
+    };
+
+    /*结束拖动滑块常见定义*/
+
+    /*插件按钮定义*/
+    var HelperBtn = function($container) {
+        this.css = {
+            listen_obj: {
+                "width": "60px",
+                "height": "60px",
+                "position": "absolute",
+                "background-color": "#f8f8f5",
+                "border-radius": "50%",
+                "cursor": "move",
+                "transform":"scale(1,1)",
+                "boxShadow": "0px 0px 40px #121e44",
+                "transition":".5s transform ease-in-out"
+            },
+            listen_obj_hover: {
+                "transform":"scale(1.1,1.1)"
+            },
+            move_obj: {
+                "width": "60px",
+                "height": "60px",
+                "position": "absolute",
+                "left": "0px",
+                "top": "0px",
+                "border-radius": "50%",
+                "-webkit-user-select":"none",
+                "-moz-user-select":"none",
+                "-ms-user-select":"none",
+                "user-select":"none",
+                "z-index":"9999"
+            },
+            show_btn: {
+                "width": "30px",
+                "height": "30px",
+                "position": "absolute",
+                "left": "15px",
+                "top": "15px",
+                "border-radius": "50%",
+                "text-align": "center",
+                "ine-height": "30px",
+                "transform":"scale(1,1)",
+                "cursor": "pointer",
+                "background-color": "#b7c188",
+                "color":"white",
+                "box-shadow": "0px 0px 6px #AC88C1"
+            },
+            show_btn_hover: {
+                "transform":"scale(1.1,1.1)"
+            },
+            show_btn_active: {
+                "background-color": "#5F3B74"
+            }
+        };
+        this.body = typeof $container === "undefined" ? document.getElementsByTagName('html')[0] : $container;
+        // this.init();
+        return this;
+    };
+    HelperBtn.prototype = {
+        /**
+         * create_js_helper_btn
+         * @return {obj} return html_obj
+         */
+        init: function() {
+        /*按钮定义*/
+            // var listen_obj = document.getElementById('listen_obj');
+            // var move_obj = document.getElementById('move_obj');
+            // var draging_obj = new DragObj(move_obj, {listen_obj:listen_obj});
+            
+            // 创建div
+            var move_obj = document.createElement('div'),
+                listen_obj = document.createElement('div'),
+                show_btn = document.createElement('div'),
+                // body = document.getElementsByTagName('html')[0],
+                body = this.body,
+                that = this
+                ;
+            // 设置id
+            move_obj.id='js_helper_move_obj';
+            listen_obj.id='js_helper_listen_obj';
+            show_btn.id='js_helper_show_btn';
+
+            // 样式
+            this.setListStlye(listen_obj, this.css.listen_obj);
+            listen_obj.addEventListener('mouseover', function(){
+                that.setListStlye(listen_obj, that.css.listen_obj_hover);
+            });
+            listen_obj.addEventListener('mouseleave', function(){
+                that.setListStlye(listen_obj, that.css.listen_obj);
+            });
+
+            this.setListStlye(move_obj, this.css.move_obj);
+            
+            this.setListStlye(show_btn, this.css.show_btn);
+            show_btn.addEventListener('mouseover', function(){
+                console.log("mousemove show_btn");
+                that.setListStlye(show_btn, that.css.show_btn_hover);
+            });
+            show_btn.addEventListener('mouseleave', function(){
+                that.setListStlye(show_btn, that.css.show_btn);
+            });
+            show_btn.addEventListener('mouseleave', function(){
+                that.setListStlye(show_btn, that.css.show_btn);
+            });
+            show_btn.addEventListener('mousedown', function(){
+                that.setListStlye(show_btn, that.css.show_btn_active);
+            });
+            show_btn.addEventListener('mouseup', function(){
+                that.setListStlye(show_btn, that.css.show_btn);
+            });
+            // 添加
+            move_obj.appendChild(listen_obj);
+            move_obj.appendChild(show_btn);
+            body.appendChild(move_obj);
+            return {move_obj:move_obj, listen_obj:listen_obj, show_btn:show_btn};
+        },
+        setListStlye: function(htmlObj, styles) {
+            var i = 0,
+                len = 0
+                ;
+            for ( i in styles) {
+                htmlObj.style[i] = styles[i];
+            }
+        }
+    };
+    /*结束插件按钮定义*/
+
+    /*边栏定义*/
+    var HelperSidebar = function($container, options) {
+        this.ids = {
+            js_helper_sidebar:'js_helper_sidebar',
+            js_helper_sidebar_header:'js_helper_sidebar_header',
+            js_helper_sidebar_content:'js_helper_sidebar_content',
+            js_helper_sidebar_tap: 'js_helper_sidebar_tap',
+            js_helper_sidebar_nav: 'js_helper_sidebar_nav'
+        };
+        this.css = {
+            js_helper_sidebar: {
+                'z-index': '9998',
+                'position': 'fixed',
+                'width': '500px',
+                'height': '80%',
+                'background-color': 'rgba(100,100,100,.8)',
+                'top': '10%',
+                'left':'-500px',
+                'transition': '.5s left ease',
+                'box-shadow': 'black 0px 0px 9px'
+            },
+            js_helper_sidebar_hover: {
+                'left':'0'
+            },
+            js_helper_sidebar_nav: {
+                'background-color': '#3f1320',
+                'height': '2rem'
+            },
+            js_helper_sidebar_tap: {
+                'margin':'0 0 0 0',
+                // 'padding':'.5rem',
+                'background-color': 'rgb(199, 219, 215)',
+                'color': '#333',
+                'overflow':'auto'
+            },
+            js_helper_sidebar_content: {
+                'height': 'calc(100% - 2rem)',
+                'overflow': 'auto'
+            },
+            js_helper_sidebar_nav_a: {
+                'display': 'inline-block',
+                'text-decoration': 'none',
+                'color': '#666',
+                'background-color': '#c7dbd7',
+                'padding': '0 .2rem',
+                'height':'2rem',
+                'line-height': '2rem',
+                'border-right':'2px solid #333'
+            }
+        };
+        this.skills = {
+            'windowMs': true,
+            'colorPicker': true,
+            // 'reg': true,
+            'navigatorMs':true
+
+        };
+        this.isShow = false;
+        this.elem = null;
+        this.body = typeof $container === 'undefined' ? document.getElementsByTagName('html')[0] : $container;
+        return this;
+    };
+    HelperSidebar.prototype = {
+        init: function() {
+            // var ifExit = document.getElementById("js_helper_sidebar");
+            // if (ifExit != null) {
+            //     ifExit.remove();
+            // }
+            var js_helper_sidebar = document.createElement('div'),
+                js_helper_sidebar_header = document.createElement('div'),
+                js_helper_sidebar_content = document.createElement('div'),
+                js_helper_sidebar_tap = document.createElement('div'),
+                js_helper_sidebar_nav = document.createElement('div'),
+                body = this.body,
+                that = this,
+                i,
+                len
+                ;
+            // set id
+            js_helper_sidebar.id = this.ids.js_helper_sidebar;
+            js_helper_sidebar_header.id=this.ids.js_helper_sidebar_header;
+            js_helper_sidebar_content.id = this.ids.js_helper_sidebar_content;
+            js_helper_sidebar_tap.id = this.ids.js_helper_sidebar_tap;
+            js_helper_sidebar_nav.id = this.ids.js_helper_sidebar_nav;
+            
+            // append to html
+            
+            js_helper_sidebar_content.appendChild(js_helper_sidebar_tap);
+            js_helper_sidebar.appendChild(js_helper_sidebar_header);
+            js_helper_sidebar.appendChild(js_helper_sidebar_nav);
+            js_helper_sidebar.appendChild(js_helper_sidebar_content);
+            body.appendChild(js_helper_sidebar);
+            
+            js_helper_sidebar.addEventListener("mouseover", function(){
+                window.onmousewheel=function(){return false};
+                this.onmousewheel = function(){return true;};
+            });
+            js_helper_sidebar.addEventListener("mouseleave", function(){
+                window.onmousewheel= function(){return true;};
+            })
+
+            this.elem = js_helper_sidebar;
+
+            this.addSkills();
+
+            // set css
+            this.setListStyle(js_helper_sidebar, this.css.js_helper_sidebar);
+            this.setListStyle(js_helper_sidebar_tap, this.css.js_helper_sidebar_tap);
+            this.setListStyle(js_helper_sidebar_nav, this.css.js_helper_sidebar_nav);
+            this.setListStyle(js_helper_sidebar_content, this.css.js_helper_sidebar_content);
+            js_helper_sidebar_nav_a = document.getElementsByClassName('js_helper_sidebar_nav');
+            for (i = 0, len = js_helper_sidebar_nav_a.length; i < len; i++) {
+                this.setListStyle(js_helper_sidebar_nav_a[i],this.css.js_helper_sidebar_nav_a); 
+            }
+
+            // init status
+            this.children(document.getElementById('js_helper_sidebar_nav'))[0].click();
+            return this;
+        },
+        show: function() {
+            this.setListStyle(this.elem, this.css.js_helper_sidebar_hover);
+            this.isShow = true;
+        },
+        hide: function() {
+            this.setListStyle(this.elem, this.css.js_helper_sidebar);
+            this.isShow = false;
+        },
+        setListStyle: function(htmlObj, styles) {
+            var i = 0,
+                len = 0
+                ;
+            for ( i in styles) {
+                htmlObj.style[i] = styles[i];
+            }
+        },
+        status: function() {return this.isShow;},
+        stopPropagation: function(e) { 
+            e = e || window.event; 
+            if (e.stopPropagation) { 
+                e.stopPropagation();//IE以外
+            } else { 
+                e.cancelBubble = true;//IE 
+            } 
+        },
+        documentMessage: function() {
+            var cookie_ = document.cookie,
+                title_ = document.title,
+                url_ = document.URL
+            ;
+            return {
+                cookie: cookie_,
+                title: title_,
+                url: url_
+            };
+        },
+        windowMessage: function() {
+            var windowMs = {
+                "window.innerWidth": window.innerWidth,
+                "window.innerHeight": window.innerHeight,
+                "document.body.clientWidth": document.body.clientWidth, // BODY对象宽度 
+                "document.body.clientHeight": document.body.clientHeight, // BODY对象高度 
+                // "标准模式下："
+                "document.documentElement.clientWidth": document.documentElement.clientWidth, // 可见区域宽度 
+                "document.documentElement.clientHeight": document.documentElement.clientHeight, // 可见区域高度 
+                // "网页可见区域宽"
+                " document.body.offsetWidth": document.body.offsetWidth,
+                // "网页可见区域高"
+                "document.body.offsetHeight": document.body.offsetHeight,
+                // "网页正文全文宽"
+                "document.body.scrollWidth": document.body.scrollWidth,
+                // "网页正文全文高"
+                "document.body.scrollHeight": document.body.scrollHeight,
+                // "网页被卷去的高"
+                "document.body.scrollTop": document.body.scrollTop,
+                // "网页被卷去的左"
+                "document.body.scrollLeft": document.body.scrollLeft,
+                // "网页被卷去的高"
+                "document.documentElement.scrollTop": document.documentElement.scrollTop,
+                // "网页被卷去的左"
+                "document.documentElement.scrollLeft": document.documentElement.scrollLeft,
+                "window.screenY": window.screenY,//FireFox支持
+                // "网页正文部分上"
+                "window.screenTop": window.screenTop,//id safari opera chrome
+                "window.screenX": window.screenX,
+                // "网页正文部分左"
+                "window.screenLeft": window.screenLeft,
+                // "屏幕分辨率的高"
+                "window.screen.height ": window.screen.height,
+                // "屏幕分辨率的宽"
+                "window.screen.width ":  window.screen.width,
+                // "屏幕可用工作区高度"
+                "window.screen.availHeight ": window.screen.availHeight,
+                // "屏幕可用工作区宽度"
+                "window.screen.availWidth ": window.screen.availWidth 
+            };
+            return windowMs;
+        },
+        getNavigatorMs: function() {
+            var navigatorMs = {
+                'window.navigator.appCodeName': window.navigator.appCodeName,
+                'window.navigator.appName': window.navigator.appName,
+                'window.navigator.appVersion': window.navigator.appVersion
+            };
+            return navigatorMs;
+        },
+        log: function(obj) {
+            var i;
+            for (i in obj) {
+                console.log(i , obj[i]);
+            }
+        },
+        addSkills: function(){
+            var that = this;
+            if (this.skills.windowMs === true) {
+                this.repaintWindowMs();
+            }
+            if (this.skills.colorPicker === true) {
+                this.repaintColorPicker();
+            }
+            if (this.skills.reg === true) {
+                this.repaintReg();
+            }
+            if (this.skills.navigatorMs === true) {
+                this.repaintNavigator();
+            }
+            window.onresize = function() {
+                // that.init();
+                that.repaintWindowMs();
+            };
+
+            window.onscroll = function(event) {
+                // console.log(event);
+                that.repaintWindowMs();
+                // js_helper_sidebar.stopPropagation(event);
+                // window.onmousewheel=function(){return false};  
+            }
+        },
+        getInnerText: function(obj) {
+            return typeof obj.textContent == 'string' ? obj.textContent : obj.innerText;
+        },
+        /**
+         * 兼容性设置文本内容
+         * @param {DomElement} obj  节点
+         * @param {string} text 文本内容
+         */
+        setInnerText: function(obj, text) {
+            if (typeof obj.textContent == "string") {
+                // for FireFox
+                obj.textContent = text;
+            } else {
+                obj.innerText = text;
+            }
+            return obj;
+        },
+        // 获取子节点
+        children: function(obj, n) {
+            if (arguments.length == 1) {
+                return this.sibling_(obj.firstChild);   
+            } else if (arguments.length == 2) {
+                var arr = this.sibling_(obj.firstChild);
+                return n >= 0 ? arr[n] : arr[arr.length + n];
+            }
+        },
+        // 获取同级兄弟节点
+        siblings: function(obj) {
+            return this.sibling_((obj.parentNode||{}).firstChild, obj);
+        },
+        sibling_: function(obj, elem) {
+            var arr = [];
+            for (;obj;obj = obj.nextSibling) {
+                // nodeType == 1 是元素节点
+                if (obj.nodeType === 1 && obj != elem) {
+                    arr.push(obj);
+                }
+            }
+            return arr;
+        },
+        repaintNavigator: function() {
+            var navigatorMs = this.getNavigatorMs(),
+                i,
+                ms_html,
+                js_helper_sidebar_content,
+                that = this
+                ;
+            this.log(navigatorMs);
+            ms_html = '<table style="font-size:12px">';
+            for (i in navigatorMs) {
+                ms_html += '<tr><td>' + i + '</td><td>' + navigatorMs[i] + '</td></tr>';
+            }
+            ms_html += '</table>';
+            var js_helper_sidebar_content_navigatorMs = document.getElementById('js_helper_sidebar_content_navigatorMs');
+            if (js_helper_sidebar_content_navigatorMs !== null) {
+                console.log(js_helper_sidebar_content_navigatorMs);
+                js_helper_sidebar_content_navigatorMs.innerHTML = ms_html;
+            } else {
+                // nav add
+                var js_helper_sidebar_nav,
+                    siblings_nav,
+                    newNav,
+                    content_to_show,
+                    siblings_content
+                    ;
+
+                js_helper_sidebar_nav = document.getElementById('js_helper_sidebar_nav');
+                newNav = document.createElement('a');
+                newNav.id = 'js_helper_sidebar_nav_navigatorMs';
+                newNav.className += ' js_helper_sidebar_nav';
+                newNav.href= '##';
+                js_helper_sidebar_nav.appendChild(newNav);
+                // newNav.innerText = 'windowMs';
+                this.setInnerText(newNav, 'windowMs');
+                js_helper_sidebar_content_navigatorMs = document.createElement("div");
+                js_helper_sidebar_content_navigatorMs.id = 'js_helper_sidebar_content_navigatorMs';
+               
+                js_helper_sidebar_content = document.getElementById(this.ids.js_helper_sidebar_tap);
+                js_helper_sidebar_content.appendChild(js_helper_sidebar_content_navigatorMs);
+                js_helper_sidebar_content_navigatorMs.innerHTML = ms_html;
+
+                // event listen
+                newNav.addEventListener('click', function(){
+                    console.log('click');
+                    // this.style['background-color'] = 'rgba(100,100,100,1)';
+                    this.style['background-color'] = 'rgb(199, 219, 215)';
+                    this.style.color = '#333';
+                    siblings_nav = that.siblings(this);
+                    for (i = 0, len = siblings_nav.length; i < len; i++) {
+                        // siblings_nav[i].style['background-color'] = '#c7dbd7';
+                        siblings_nav[i].style['background-color'] = 'rgb(100, 100, 100)';
+                        siblings_nav[i].style.color = '#eee';
+                    }
+
+                    content_to_show = document.getElementById(this.id.replace('nav', 'content'));
+                    siblings_content = that.siblings(content_to_show);
+                    content_to_show.style.display = 'block';
+                    for (i = 0, len = siblings_content.length; i < len; i++) {
+                        siblings_content[i].style.display = 'none';
+                    }                    
+
+                });
+            }
+        },
+        repaintReg: function() {
+            var i,
+                ms_html,
+                js_helper_sidebar_content,
+                that = this
+                ;
+            ms_html = '<h3>reg</h3>';
+
+            var js_helper_sidebar_content_reg = document.getElementById('js_helper_sidebar_content_reg');
+            if (js_helper_sidebar_content_reg !== null) {
+                console.log(js_helper_sidebar_content_reg);
+                js_helper_sidebar_content_reg.innerHTML = ms_html;
+            } else {
+                /*
+                    <div id="js_helper_sidebar_nav">
+                <a id="js_helper_sidebar_nav_reg" href="#">reg</a><a id="js_helper_sidebar_nav_reg" href="#">reg</a><a id="js_helper_sidebar_nav_reg" href="#">reg</a>
+
+                 */
+                // nav add
+                var js_helper_sidebar_nav,
+                    siblings_nav,
+                    newNav,
+                    content_to_show,
+                    siblings_content
+                    ;
+
+                // html 
+                js_helper_sidebar_nav = document.getElementById('js_helper_sidebar_nav');
+                newNav = document.createElement('a');
+                newNav.id = 'js_helper_sidebar_nav_reg';
+                newNav.className += ' js_helper_sidebar_nav';
+                newNav.href= '#';
+                // newNav.innerText = 'reg';
+                this.setInnerText(newNav, 'reg');
+                js_helper_sidebar_nav.appendChild(newNav);
+
+                js_helper_sidebar_content_reg = document.createElement('div');
+                js_helper_sidebar_content_reg.id = 'js_helper_sidebar_content_reg';
+               
+                js_helper_sidebar_content = document.getElementById(this.ids.js_helper_sidebar_tap);
+                js_helper_sidebar_content.appendChild(js_helper_sidebar_content_reg);
+                js_helper_sidebar_content_reg.innerHTML = ms_html;
+            
+                // event listen
+                newNav.addEventListener('click', function(){
+                    this.style['background-color'] = 'rgb(199, 219, 215)';
+                    this.style.color = '#333';
+                    siblings_nav = that.siblings(this);
+                    for (i = 0, len = siblings_nav.length; i < len; i++) {
+                        siblings_nav[i].style['background-color'] = 'rgb(100, 100, 100)';
+                        siblings_nav[i].style.color = '#eee';
+                    }
+
+                    content_to_show = document.getElementById(this.id.replace('nav', 'content'));
+                    siblings_content = that.siblings(content_to_show);
+                    content_to_show.style.display = 'block';
+                    for (i = 0, len = siblings_content.length; i < len; i++) {
+                        siblings_content[i].style.display = 'none';
+                    }                    
+
+                });
+
+            }
+        },        
+        repaintColorPicker: function() {
+            var i,
+                ms_html,
+                js_helper_sidebar_content,
+                that =this
+                ;
+            ms_html = '<h3>colorPicker</h3>';
+
+            var js_helper_sidebar_content_colorPicker = document.getElementById('js_helper_sidebar_content_colorPicker');
+            if (js_helper_sidebar_content_colorPicker !== null) {
+                console.log(js_helper_sidebar_content_colorPicker);
+                js_helper_sidebar_content_colorPicker.innerHTML = ms_html;
+            } else {
+                /*
+                    <div id="js_helper_sidebar_nav">
+                <a id="js_helper_sidebar_nav_colorPicker" href="#">colorPicker</a><a id="js_helper_sidebar_nav_colorPicker" href="#">colorPicker</a><a id="js_helper_sidebar_nav_reg" href="#">reg</a>
+
+                 */
+                // nav add
+                var js_helper_sidebar_nav,
+                    siblings_nav,
+                    newNav,
+                    content_to_show,
+                    siblings_content
+                    ;
+
+                js_helper_sidebar_nav = document.getElementById('js_helper_sidebar_nav');
+                newNav = document.createElement('a');
+                newNav.id = 'js_helper_sidebar_nav_colorPicker';
+                newNav.href= '#';
+                newNav.className += ' js_helper_sidebar_nav';
+                // newNav.innerText = 'colorPicker';
+                this.setInnerText(newNav, 'colorPicker');
+                js_helper_sidebar_nav.appendChild(newNav);
+
+                js_helper_sidebar_content_colorPicker = document.createElement('div');
+                js_helper_sidebar_content_colorPicker.id = 'js_helper_sidebar_content_colorPicker';
+               
+                js_helper_sidebar_content = document.getElementById(this.ids.js_helper_sidebar_tap);
+                js_helper_sidebar_content.appendChild(js_helper_sidebar_content_colorPicker);
+                // js_helper_sidebar_content_colorPicker.innerHTML = ms_html;
+
+                // event listen
+                newNav.addEventListener('click', function(){
+                    this.style['background-color'] = 'rgb(199, 219, 215)';
+                    this.style.color = '#333';
+                    siblings_nav = that.siblings(this);
+                    for (i = 0, len = siblings_nav.length; i < len; i++) {
+                        siblings_nav[i].style['background-color'] = 'rgb(100, 100, 100)';
+                        siblings_nav[i].style.color = '#eee';
+                    }
+
+                    content_to_show = document.getElementById(this.id.replace('nav', 'content'));
+                    siblings_content = that.siblings(content_to_show);
+                    content_to_show.style.display = 'block';
+                    for (i = 0, len = siblings_content.length; i < len; i++) {
+                        siblings_content[i].style.display = 'none';
+                    }                    
+
+                });
+
+                var bind_color_picker = new ColorPicker('js_helper_sidebar_content_colorPicker');
+            }
+        },
+        repaintWindowMs: function(){
+            var browerMs = this.windowMessage(),
+                i,
+                ms_html,
+                js_helper_sidebar_content,
+                that = this
+                ;
+            this.log(browerMs);
+            ms_html = '<table style="font-size:12px">';
+            for (i in browerMs) {
+                ms_html += '<tr><td>' + i + '</td><td>' + browerMs[i] + '</td></tr>';
+            }
+            ms_html += '</table>';
+            var js_helper_sidebar_content_windowMs = document.getElementById('js_helper_sidebar_content_windowMs');
+            if (js_helper_sidebar_content_windowMs !== null) {
+                console.log(js_helper_sidebar_content_windowMs);
+                js_helper_sidebar_content_windowMs.innerHTML = ms_html;
+            } else {
+                // nav add
+                var js_helper_sidebar_nav,
+                    siblings_nav,
+                    newNav,
+                    content_to_show,
+                    siblings_content
+                    ;
+
+                js_helper_sidebar_nav = document.getElementById('js_helper_sidebar_nav');
+                newNav = document.createElement('a');
+                newNav.id = 'js_helper_sidebar_nav_windowMs';
+                newNav.className += ' js_helper_sidebar_nav';
+                newNav.href= '##';
+                js_helper_sidebar_nav.appendChild(newNav);
+                // newNav.innerText = 'windowMs';
+                this.setInnerText(newNav, 'windowMs');
+                js_helper_sidebar_content_windowMs = document.createElement("div");
+                js_helper_sidebar_content_windowMs.id = 'js_helper_sidebar_content_windowMs';
+               
+                js_helper_sidebar_content = document.getElementById(this.ids.js_helper_sidebar_tap);
+                js_helper_sidebar_content.appendChild(js_helper_sidebar_content_windowMs);
+                js_helper_sidebar_content_windowMs.innerHTML = ms_html;
+
+                // event listen
+                newNav.addEventListener('click', function(){
+                    console.log('click');
+                    // this.style['background-color'] = 'rgba(100,100,100,1)';
+                    this.style['background-color'] = 'rgb(199, 219, 215)';
+                    this.style.color = '#333';
+                    siblings_nav = that.siblings(this);
+                    for (i = 0, len = siblings_nav.length; i < len; i++) {
+                        // siblings_nav[i].style['background-color'] = '#c7dbd7';
+                        siblings_nav[i].style['background-color'] = 'rgb(100, 100, 100)';
+                        siblings_nav[i].style.color = '#eee';
+                    }
+
+                    content_to_show = document.getElementById(this.id.replace('nav', 'content'));
+                    siblings_content = that.siblings(content_to_show);
+                    content_to_show.style.display = 'block';
+                    for (i = 0, len = siblings_content.length; i < len; i++) {
+                        siblings_content[i].style.display = 'none';
+                    }                    
+
+                });
+            }
+        }
+
+    };
+    /*结束边栏定义*/
+
+    /*color-picker 定义*/
+    var ColorPicker = function(container_id) {
+        // 初始化条件分支
+        this.func = {
+            addCssStyle: null,
+            addListener: null,
+            removeListener: null,
+            createDom: function(dom_str) {
+                return document.createElement(dom_str);
+            },
+            getInnerText: null,
+            /**
+             * 兼容性设置文本内容
+             * @param {DomElement} obj  节点
+             * @param {string} text 文本内容
+             */
+            setInnerText: null,
+            getStyle: null
+        };
+        // 样式
+        this.css = {
+            'h2':{
+                'text-align': 'center'
+            },
+            '#js-color-picker': {
+                // 'position': 'absolute',
+                'left': '0',
+                'top': '0',
+                'right': '0',
+                'bottom': '0',
+                'width': '100%',
+                'height': '362px',
+                'padding': '12px',
+                'margin': 'auto',
+                'border': '1px solid #CCC',
+                'background-color': '#DCDCDC',
+                'box-sizing': 'border-box'
+            },
+            '#js-color-picker>div': {
+                'position': 'relative',
+                'height': '100%',
+                // 'border': '1px solid #CCC'
+            },
+            '#js-color-picker>div:nth-of-type(1)': {
+                'width': '79%',
+                'margin-right': '2%',
+                'overflow': 'hidden',
+                'float': 'left',
+                'cursor': 'pointer'
+            },
+            '#js-color-picker>div:nth-of-type(2)': {
+                'width': '6%',
+                'float': 'left',
+                'position': 'relative'
+            },
+            '#js-color-picker>div:last-child': {
+                'border-width': '0',
+                'width': '30%',
+                'height': 'auto',
+                'text-align': 'right',
+                'float': 'left',
+                'margin-top': '1rem'
+            },
+            '#js-color-picker>div>input': {
+                'width': '70%',
+                'margin': '0 0 1em .2em',
+                'padding': '.3em'
+            },
+            '#js-color-picker>div>input[type="button"]:nth-of-type(2)': {
+                'margin-bottom': '5em',
+            },
+            '#js-color-picker>div>i': {
+                'position': 'absolute',
+                'pointer-events': 'none',
+            },
+            '#js-color-picker>div:first-child>i': {
+                'left': '100%',
+                'top': '0',
+                'width': '9px',
+                'height': '9px',
+                'border': '1px solid #000',
+                'border-radius': '50%',
+                'margin': '-5px 0 0 -5px',
+                'box-shadow': '0 0 1px 1px #FFF',
+                'transition': '.3s all ease'
+            },
+            '#js-color-picker>div:nth-of-type(2)>i': {
+                'left': '0',
+                'top': '0',
+                'width': '100%',
+                'height': '10px',
+                'margin-top': '-5px',
+            },
+            '#js-color-picker>div:nth-of-type(2)>i:before, #js-color-picker>div:nth-of-type(2)>i:after': {
+                'position': 'absolute',
+                'content': '""',
+                'width': '0',
+                'height': '0',
+                'border': '5px solid transparent',
+            },
+            '#js-color-picker>div:nth-of-type(2)>i:before': {
+                'left': '-5px',
+                'top': '0',
+                'border-left-color': '#000',
+            },
+            '#js-color-picker>div:nth-of-type(2)>i:after': {
+                'right': '-5px',
+                'top': '0',
+                // 'border-right-color': '#000',
+            }
+        };
+        // Dom
+        this.elem = {
+            container: null,
+            color_area: null,
+            color_belt: null,
+            color_area_cvs: null,
+            color_belt_cvs:null,
+            rgb_div_input: null,
+            hex_div_input: null,
+            color_belt_i: null,
+            color_area_i: null
+        };
+        this.init(container_id);
+        
+    }
+    ColorPicker.prototype = {
+
+        init: function(container_id) {
+            this.browerSniffer();
+            this.initCss();
+            this.initDom(container_id);
+            this.initListener();
+        },
+        /**
+         * 浏览器嗅探，初始化时分支
+         * @return {obj} this
+         */
+        browerSniffer: function() {
+            // ////////////////init addCssStyle/////////////////////////
+                var style_tag = document.createElement('style');
+                style_tag.setAttribute('type', 'text/css');
+                if(style_tag.styleSheet) {// IE
+                    this.func.addCssStyle = function(css_str) {
+                        var style_tag = document.createElement('style'),
+                            head = document.getElementsByTagName('head')[0]
+                            ;
+                        style_tag.setAttribute('type', 'text/css');
+                        style_tag.styleSheet.cssText = css_str;
+                        head.appendChild(style_tag);
+                    }
+                } else {
+                    this.func.addCssStyle = function(css_str) {
+                        var style_tag = document.createElement('style')
+                            head = document.getElementsByTagName('head')[0]
+                            ;
+                        style_tag.setAttribute('type', 'text/css');
+                        var css_node = document.createTextNode(css_str);
+                        style_tag.appendChild(css_node);
+                        head.appendChild(style_tag);
+                    }
+                }
+
+            // /////////////////init addListener & removeListener///////
+                if (typeof window.addEventListener === 'function') {
+                    this.func.addListener = function(elem, type, func) {
+                        elem.addEventListener(type, func, false);
+                    };
+                    this.func.removeListener = function(elem, type, func) {
+                        elem.removeEventListener(type, func, false);
+                    };
+                } else if (typeof window.attachEvent == 'function') {
+                    this.func.addListener = function(elem, type, func) {
+                        elem.attachEvent('on' + type, func);
+                    };
+                    this.func.removeListener = function(elem, type, func) {
+                        elem.detachEvent('on' + type, func);
+                    };
+                } else {
+                    this.func.addListener = function(elem, type, func) {
+                        elem['on' + type] = func;
+                    }
+                    this.func.removeListener = function(elem,
+                        type, func) {
+                        elem['on' + type] = null;
+                    }
+                }
+
+            // /////////////////init get & set innerText///////////////
+                var div_ = this.func.createDom('div');
+                if (typeof div_.textContent == 'string') {
+                    this.func.getInnerText = function(obj, text) {
+                        return obj.textContent;
+                    }
+
+                    this.func.setInnerText = function(obj, text) {
+                        obj.textContent = text;
+                        return obj;
+                    }
+                    
+                } else {
+                    this.func.getInnerText = function(obj, text) {
+                        return obj.innerText;
+                    };
+                    this.func.setInnerText = function(obj, text) {
+                        obj.innerText = text;
+                        return obj;
+                    }
+
+                }
+            // //////////////////init getStyle ///////////////////////
+                var div_ = this.func.createDom('div');
+                if (div_.currentStyle) {
+                    this.func.getStyle = function(obj, name) {
+                        return obj.currentStyle[name] ? obj.currentStyle[name] : obj.currentStyle.getPropertyValue(name);
+                    }
+                } else {
+                    this.func.getStyle = function(obj, name) {
+                        return window.getComputedStyle(obj, null)[name] ? window.getComputedStyle(obj, null)[name] : window.getComputedStyle(obj, null).getPropertyValue(name);
+                    }
+                }
+
+            // add here
+            // 
+            return this;
+        },
+        
+        /**
+         * append style tag in head 
+         * @return {string} css_str
+         */
+        initCss: function() {
+            var css_str = this.getCssStrs_(this.css);
+            this.func.addCssStyle(css_str);
+            return css_str;
+        },
+        /**
+         * return string of styles
+         * @return {string} string of css
+         */
+        getCssStrs_: function(css_obj) {
+            var css_arr = [],
+                i,
+                len
+                ;
+
+            for (i in css_obj) {
+                css_arr.push(this.transformCss_(i, css_obj[i]));
+            }
+
+            return css_arr.join('\n'); 
+        },
+        /**
+         * transform css_obj to css_str
+         * @param  {string} name  style_name
+         * @param  {object} style style_list_obj
+         * @return {string}       css_str
+         */
+        transformCss_: function(name, style) {
+            var css_str = name + ' {',
+                end_str = '}',
+                i,
+                style_str = ''
+                ;
+
+            for ( i in style) {
+                style_str += i + ':' + style[i] + ';'
+            }
+            css_str += style_str + end_str;
+            return css_str;
+        },
+        /**
+         * init Dom tree in container which id is container_id
+         * @param  {string} container_id container_id
+         * @return {obj}              this
+         */
+        initDom: function(container_id) {
+            var createDom =  this.func.createDom,
+                binding_container = document.getElementById(container_id),
+                container = createDom('div'),
+
+                color_area = createDom('div'),
+                color_area_cvs = createDom('canvas'),
+                color_area_i = createDom('i'),
+
+                color_belt = createDom('div'),
+                color_belt_cvs = createDom('canvas'),
+                color_belt_i = createDom('i'),
+
+
+                rgb_div = createDom('div'),
+                rgb_div_input = createDom('input'),
+                rgb_div_label = createDom('label'),
+                
+                hex_div_label = createDom('label'),
+                hex_div_input = createDom('input'),
+                br = createDom('br'),
+                i, len
+                ;
+
+
+            if (container === null) {
+                container = document.getElementsByTagName('body')[0];
+            }
+
+            color_area.appendChild(color_area_cvs);
+            color_area.appendChild(color_area_i);
+            color_belt.appendChild(color_belt_cvs);
+            color_belt.appendChild(color_belt_i);
+
+            rgb_div.appendChild(rgb_div_label);
+            rgb_div.appendChild(rgb_div_input);
+            rgb_div.appendChild(br);
+            rgb_div.appendChild(hex_div_label);
+            rgb_div.appendChild(hex_div_input);
+
+            container.appendChild(color_area);
+            container.appendChild(color_belt);
+            container.appendChild(rgb_div);
+            binding_container.appendChild(container);
+
+            container.id = 'js-color-picker';
+            this.func.setInnerText(rgb_div_label, 'rgb');
+            this.func.setInnerText(hex_div_label,'#');
+            console.log('lalalal', this.func.getStyle(color_area, 'width'));
+            color_area_cvs.width = parseInt(this.func.getStyle(color_area, 'width'),10);
+            // color_area_cvs.width = '100%';
+            color_area_cvs.height = color_area.clientHeight;
+            color_belt_cvs.width = color_belt.clientWidth;
+            color_belt_cvs.height = color_belt.clientHeight;
+            console.log(color_area.clientWidth, color_area_cvs.width);
+            this.elem.container = container;
+            this.elem.color_area = color_area;
+            this.elem.color_belt = color_belt;
+            this.elem.color_belt_cvs = color_belt_cvs;
+            this.elem.color_area_cvs = color_area_cvs;
+            this.elem.rgb_div_input = rgb_div_input;
+            this.elem.hex_div_input = hex_div_input;
+            this.elem.color_area_i = color_area_i;
+            this.elem.color_belt_i = color_belt_i;
+            return this;
+        },
+
+        drawColorBelt: function() {
+            var belt_h = this.elem.color_belt.clientHeight,
+                belt_w = this.elem.color_belt.clientWidth,
+                ctx = this.elem.color_belt_cvs.getContext('2d')
+                ;
+            while (--belt_h >= -1) {
+                ctx.beginPath();
+                ctx.strokeStyle = 'hsl(' + belt_h + ',100%,50%)';
+                ctx.moveTo(0, belt_h);
+                ctx.lineTo(belt_w, belt_h);
+                ctx.stroke();
+                ctx.closePath();
+            } 
+        },
+        addBeltListen: function() {
+            var addListener = this.func.addListener,
+                belt_cvs = this.elem.color_belt_cvs,
+                belt_i = this.elem.color_belt_i,
+                area_i = this.elem.color_area_i,
+                area_cvs = this.elem.color_area_cvs,
+                rgb_div_input = this.elem.rgb_div_input,
+                hex_div_input = this.elem.hex_div_input
+                ;
+            addListener(belt_cvs, 'click', redraw);
+            function redraw(event) {
+                var x = event.offsetX, 
+                    y = event.offsetY,
+                    data = this.getContext('2d').getImageData(x, y, 1, 1).data;
+                event.preventDefault;
+                event.stopPropagation();
+                drawArea(data);
+                belt_i.style.top = y + 'px';
+                area_i.style.left = area_i.style.top = 'auto';
+            }
+            function drawArea(data) {
+                var area_w = area_cvs.width,
+                    area_h = area_cvs.height,
+                    r = data[0],
+                    g = data[1],
+                    b = data[2],
+                    a = data[3],
+                    o,
+                    i = 0,
+                    j = 0,
+                    ctx = area_cvs.getContext('2d'),
+                    img_data = ctx.getImageData(0, 0, area_w, area_h),
+                    data_arr = img_data.data,
+                    arr_w = area_w * 4
+                    ;
+
+                for (; i < area_h; i++) {
+                    for (j = 0; j < arr_w; j += 4) {
+                        o = 255 * (area_h - i) / area_h;
+                        data_arr[i * arr_w + j] = o - (o - r * (area_h - i) / area_h) * j / arr_w | 0;
+                        data_arr[i * arr_w + j + 1] = o - (o - g * (area_h - i) / area_h) * j / arr_w | 0;
+                        data_arr[i * arr_w + j + 2] = o - (o - b * (area_h - i) / area_h) * j / arr_w | 0;
+                        data_arr[i * arr_w + j + 3] = 255;
+                        
+                    }
+                }
+                ctx.putImageData(img_data, 0,0);
+                setColor(data_arr);
+            }
+            function setColor(data) {
+                rgb_div_input.value = data[0] + ',' + data[1] + ',' + data[2];
+                hex_div_input.value = hex(data[0]) + hex(data[1]) + hex(data[2]);
+            }
+            function hex(n) {
+                return n > 16 ? n.toString(16).toUpperCase() : '0' + n.toString(16).toUpperCase(); 
+            }
+            drawArea(belt_cvs.getContext('2d').getImageData(0,0,1,1).data);
+        },
+        addAreaListen: function() {
+            var area_cvs = this.elem.color_area_cvs,
+                addListener = this.func.addListener,
+                area_i = this.elem.color_area_i,
+                rgb_div_input = this.elem.rgb_div_input,
+                hex_div_input = this.elem.hex_div_input
+                ;
+            console.log(area_cvs);
+            addListener(area_cvs, 'click', resetColor);
+            function resetColor(e) {
+                // console.log('click');
+                var x = e.offsetX, y = e.offsetY;
+                e.preventDefault;
+                e.stopPropagation();
+                setColor(area_cvs.getContext('2d').getImageData(x, y, 1, 1).data);
+                area_i.style.left = x + 'px';
+                area_i.style.top = y + 'px';
+            }
+            function setColor(data) {
+                rgb_div_input.value = data[0] + ',' + data[1] + ',' + data[2];
+                hex_div_input.value = hex(data[0]) + hex(data[1]) + hex(data[2]);
+            }
+            function hex(n) {
+                return n > 16 ? n.toString(16).toUpperCase() : '0' + n.toString(16).toUpperCase(); 
+            }
+        },
+        bindDragObj: function() {
+            if (typeof DragObj === 'function') {
+                console.log("bind ok!!!!!!!!!!!!")
+                // var area_i_drag = new DragObj(this.elem.color_area_i, {listenObj:this.elem.color_area_cvs}),
+                    // belt_i_drag = new DragObj(this.elem.color_belt_i, {listenObj:this.elem.color_belt_cvs});
+                // return {area_i_drag: area_i_drag, belt_i_drag: belt_i_drag};
+            }
+            else {
+                console.log("not function!!!!!!!!!!");
+                return null;
+            }
+            // return true;
+        },
+        initListener: function() {
+            this.drawColorBelt();
+            this.addBeltListen();
+            this.addAreaListen();
+            this.bindDragObj();
+        }
+    }
+    /*结束color-picker 定义*/
+    
+    /*初始化并绑定到拖动滑块*/
+    var js_helper_btn = new HelperBtn().init();
+    var dragobj = new DragObj(js_helper_btn.move_obj, {listenObj:js_helper_btn.listen_obj});
+    var js_helper_sidebar = new HelperSidebar().init();
+    var html = document.getElementsByTagName("html")[0];
+    // html.addEventListener("click", function(){
+    //     if (js_helper_sidebar.status()) {
+    //         console.log("document to hide");
+    //         js_helper_sidebar.hide();
+    //     }
+        
+    // });
+    js_helper_btn.show_btn.addEventListener("click", function(event){
+        if (js_helper_sidebar.status()) {
+            js_helper_sidebar.hide();
+        } else {
+            js_helper_sidebar.show();
+        }
+        js_helper_sidebar.stopPropagation(event);
+       
+    });
+    js_helper_btn.show_btn.click();
+    
+    // attach drag
+    
+
+})(window, document);
+
+
+</script>
+</html>

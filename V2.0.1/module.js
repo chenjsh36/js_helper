@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         jshelper
-// @namespace    http://your.homepage/
-// @version      0.1
-// @description  enter something useful
-// @author       You
+// @namespace    https://github.com/chenjsh36
+// @version      2.0.1
+// @description  a tool for watching window message and picking color
+// @author       chenjsh36
 // @match        http://*/*
 // @grant        none
 // ==/UserScript==
